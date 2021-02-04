@@ -1,7 +1,9 @@
 # Mech-Eye_Csharp_interface
 
 
-This is official C# interfaces for Mech-Eye cameras. 
+This is official C# interfaces for Mech-Eye cameras. Only supported on Windows OS.
+
+If you are using Mech-Eye cameras with firmware version older than 1.0.0, please switch to Branch 0.4.0.
 
 ## Features
 
@@ -21,7 +23,7 @@ These environments are needed :
 
 These packages are needed:
 
-* Google.Protobuf
+* Newtonsoft.Json
 * NetMQ
 * OpenCvSharp4 
 * OpenCvSharp4.runtime.win
@@ -38,7 +40,7 @@ All these you can install with Nuget.
 
 3. Right CIick on the "Mechmind_cameraAPI_Csharp" solution and click "Manage Nuget packages".
 
-4. Then Click the "Browse" tag and search "Google.Protobuf" and install it.
+4. Then Click the "Browse" tag and search "NetMQ" and install it.
 
    The 3 other packages can also be installed in this way.
 
@@ -60,17 +62,12 @@ Mech-Eye_Csharp_interface
 │    ├─ CameraClient.cs
 │    ├─ Mechmind_CameraAPI_Csharp.csproj
 │    ├─ ZmqClient.cs
-│    ├─ protobuf_generate
-│    │    ├─ CameraStatus.cs
-│    │    └─ Image.cs
 │    └─ sample.cs
 ├─ Mechmind_CameraAPI_Csharp.sln
 └─ README.md
 ```
 
 **Mechmind_CameraAPI_Csharp**  folder contains all code. **CameraClient.cs** and **ZmqClient.cs** contains essential code of interfaces. 
-
-In **protobuf_generate**, two files define data structure of communication over networks.
 
 **sample.cs** provides a simple example to show the usage of interfaces.
 
@@ -90,7 +87,7 @@ There are two main classes: CameraClient and ZmqClient. CameraClient is subclass
 
   * **getCameraIntri()**: get camera's intrinsic parameters.
 
-  * **getCameraIp()**: get camera's ip address.
+  * **getCameraInfo()**: get camera's ip address.
 
   * **getCameraVersion()**: get camera's version number.
 
@@ -99,34 +96,6 @@ There are two main classes: CameraClient and ZmqClient. CameraClient is subclass
   * **setParameter()** : set the value of a specific parameter in camera.
 
     **Attention**: Please be sure to know the meaning of your setting of parameters, **wrong setting could cause some errors in the interfaces!**
-
-    **Note**：Some parameters cannot be set in this version, they are available in next version. But they can still be set in Mech_eye. Here are all parameters can be set now(You can check them in Mech_eye software):
-  
-    * **Projection** part:
-      * period
-      * isNanoType
-      * lightPower
-      * syncExposure
-    * **3D scaning** part:
-      * exposure1
-      * exposure2
-      * exposure3
-      * gain
-      * useBinning
-      * useColorHdr
-    * **2D scaning** part:
-      * camera2DExpTime
-      * expectedGrayValue
-      * sharpenFactor
-    * **filter** part:
-      * contrastThres
-      * strength
-      * useMedianBlur
-      * hasThinObject
-  * **depth limit** part:
-      * lowerLimit
-      * upperLimit
-  
   * **captureRgbCloud()** : get a point cloud as a double array.
 
 
@@ -150,7 +119,6 @@ camera.connect("192.168.3.76");
 Then, we can get some brief info about camera:
 
 ```c#
-Console.WriteLine("Camera IP: " + camera.getCameraIp());
 Console.WriteLine("Camera ID: " + camera.getCameraId());
 Console.WriteLine("Version: " + camera.getCameraVersion());
 ```
@@ -158,11 +126,10 @@ Console.WriteLine("Version: " + camera.getCameraVersion());
 Finally, we can set and get the value of a specific parameter, in this case, we choose exposure time for color image:
 
 ```c#
-Console.WriteLine(camera.setParameter("camera2DExpTime", 15));
-Console.WriteLine(camera.getParameter("camera2DExpTime"));
-Console.WriteLine(camera.setParameter("camera2DExpTime", 20));
-Console.WriteLine(camera.getParameter("camera2DExpTime"));
-
+Console.WriteLine(camera.setParameter("scan2dExposureMode",0)); 
+Console.WriteLine(camera.getParameter("scan2dExposureMode"));
+Console.WriteLine(camera.setParameter("scan2dExposureTime",20)); 
+Console.WriteLine(camera.getParameter("scan2dExposureTime"));
 ```
 
 The program can capture color images and depth images by camera. And also point clouds will be captured as a double array:

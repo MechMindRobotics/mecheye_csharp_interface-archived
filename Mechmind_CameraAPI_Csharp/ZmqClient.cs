@@ -1,11 +1,7 @@
 ﻿using NetMQ;
 using NetMQ.Sockets;
 using System;
-using Google.Protobuf;
-using System.Net.Sockets;
-using System.Drawing;
-using Mmind;
-using System.IO;
+
 
 namespace Mechmind_CameraAPI_Csharp
 {
@@ -42,17 +38,14 @@ namespace Mechmind_CameraAPI_Csharp
         {
             return addr.Length == 0;
         }
-        public Mmind.Response sendReq(Mmind.Request req)
+        public byte[] sendReq(string request)
         {
-            Mmind.Response rel;
             try
             {
-                reqbuf = new byte[req.CalculateSize()];
-                Serialize(reqbuf, req);
+                reqbuf = System.Text.Encoding.Default.GetBytes(request); ;
                 client.SendFrame(reqbuf);
                 resbuf = client.ReceiveFrameBytes();
-                rel = Mmind.Response.Parser.ParseFrom(resbuf);
-                return rel;
+                return resbuf;
             }  
             catch (Exception e)
             {
@@ -61,15 +54,7 @@ namespace Mechmind_CameraAPI_Csharp
             }
             return null;
         }
-        private void Serialize(byte[] data, Mmind.Request person)
-        {
-            using (CodedOutputStream cos = new CodedOutputStream(data))
-            {
-                person.WriteTo(cos);
-            }
-                
-        }
-
+        
         
         
     }

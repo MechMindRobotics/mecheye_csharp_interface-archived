@@ -1,10 +1,7 @@
-﻿using Mmind;
-using System;
-using System.Text;
+﻿using System;
 using OpenCvSharp;
-using Google.Protobuf;
 using System.Linq;
-
+using Newtonsoft.Json.Linq;
 
 namespace Mechmind_CameraAPI_Csharp
 {
@@ -34,68 +31,97 @@ namespace Mechmind_CameraAPI_Csharp
         }
         
     }
+    static class Service
+    {
+        public const string cmd = "cmd";
+        public const string property_name = "property_name";
+        public const string property_value = "property_value";
+        public const string image_type = "image_type";
+        public const string persistent = "persistent";
+        public const string camera_config = "camera_config";
+    }
+    static class Command
+    {
+        public const string CaptureImage = "CaptureImage";
+        public const string GetCameraIntri = "GetCameraIntri";
+        public const string GetCameraId = "GetCameraId";
+        public const string GetCameraInfo = "GetCameraInfo";
+        public const string GetCamera2dInfo = "GetCamera2dInfo";
+        public const string GetServerInfo = "GetServerInfo";
+        public const string SetCameraParams = "SetCameraConfig";
+        public const string GetCameraParams = "GetCameraConfig";
+        public const string CaptureGratingImage = "CaptureGratingImage";
+    }
     class CameraClient:ZmqClient
     {
         const int DEPTH = 1;
         const int COLOR = 2;
-        const int COLOR_DEPTH = COLOR | DEPTH;
-        const int CaptureImage = 0;
-        const int GetCameraIntri = 11;
-        const int GetCameraStatus = 19;
-        const int SetCameraParameter = 25;
-        const int GetCameraParameter = 26;
         const int Encode32FBias = 32768;
-        const int CaptureGratingImage = 8;
+        const int SIZE_OF_JSON = 4;
+        const int SIZE_OF_SCALE = 8;
         public CameraClient() : base()
         { }
         public int connect(string ip)
         {
             return setAddr(ip);
         }
-        Mmind.Response sendRequest(int command, double value_num, string value_str)
+        byte[] sendRequest(string command, double value = 0, string propertyName = "", int image_type = 0)
         {
-            Mmind.Request Request = new Mmind.Request();
-            Request.Command = command;
-            Request.ValueDouble = value_num;
-            Request.ValueString = value_str;
-            Mmind.Response reply = sendReq(Request);
+            JObject request = new JObject();
+            request.Add(Service.cmd, command);
+            request.Add(Service.property_name, propertyName);
+            request.Add(Service.property_value, value);
+            request.Add(Service.image_type, image_type);
+            byte[] reply = sendReq(request.ToString());
             return reply;
         }
-        Mmind.CameraStatus getCameraStatus()
+        public JToken getCameraInfo()
         {
-            Mmind.Response reply = sendRequest(GetCameraStatus, 0.0, "");
-            string StatusUnicode = reply.CameraStatus;
-            byte[] StatusBytes = Encoding.UTF8.GetBytes(StatusUnicode);
-            Mmind.CameraStatus cmstatus = new CameraStatus();
-            cmstatus = Mmind.CameraStatus.Parser.ParseFrom(StatusBytes);
-            return cmstatus;
+            byte[] reply = sendRequest(Command.GetCameraInfo);
+            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
+            return info["camera_info"];
         }
         public string getCameraId()
         {
-            return getCameraStatus().EyeId;
-        }
-        public string getCameraIp()
-        {
-            return getCameraStatus().Ip;
+            return getCameraInfo()["eyeId"].ToString();
         }
         public string getCameraVersion()
         {
-            return getCameraStatus().Version;
+            return getCameraInfo()["version"].ToString();
         }
         public double getParameter(string paraname)
         {
-            Mmind.Response reply = sendRequest(GetCameraParameter, 0.0, paraname);
-            return double.Parse(reply.ParameterValue);
+            JObject request = new JObject();
+            request.Add(Service.cmd, Command.GetCameraParams);
+            request.Add(Service.property_name, paraname);
+            byte[] reply = sendReq(request.ToString());
+            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
+            JToken allConfigs = info["camera_config"]["configs"][0];
+            if (allConfigs[paraname] == null) {
+                Console.WriteLine("Property " + paraname +" not exist!");
+                return -1;
+            }
+            return double.Parse(allConfigs[paraname].ToString());
         }
         public string setParameter(string paraname, double value)
         {
-            Mmind.Response error = sendRequest(SetCameraParameter, value, paraname);
-            return error.Error;
+            JObject request = new JObject();
+            request.Add(Service.cmd, Command.SetCameraParams);
+            JObject tmp = new JObject();
+            tmp.Add(paraname, value);
+            request.Add(Service.camera_config,tmp);
+            request.Add(Service.persistent, "false");
+            byte[] reply = sendReq(request.ToString());
+            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
+            if (info["err_msg"] != null)
+                Console.Write(info["err_msg"]);
+            return "";
         }
         public double[] getCameraIntri()
         {
-            Mmind.Response reply = sendRequest(GetCameraIntri, 0.0, "");
-            string intri_original = reply.CamIntri;
+            byte[] reply = sendRequest(Command.GetCameraIntri);
+            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
+            string intri_original = info["camera_intri"]["intrinsic"].ToString();
             int start = intri_original.LastIndexOf('[');
             int end = intri_original.LastIndexOf(']');
             int length = intri_original.Length;
@@ -103,8 +129,8 @@ namespace Mechmind_CameraAPI_Csharp
             {
                 Console.WriteLine("Wrong camera intrinsics");
                 return null;
-            }   
-            string intri_str = intri_original.Remove(0,start+1).Substring(0,end-start-1);
+            }
+            string intri_str = intri_original.Remove(0, start + 1).Substring(0, end - start - 1);
             string[] intrivalue_str = intri_str.Split(',');
             if (intrivalue_str.Length != 4)
             {
@@ -122,33 +148,41 @@ namespace Mechmind_CameraAPI_Csharp
         }
         public Mat captureColorImg()
         {
-            Mmind.Response reply = sendRequest(CaptureImage, COLOR, "");
-            if (reply.ImageRGB.Length == 0)
+            byte[] reply = sendRequest(Command.CaptureImage, 0, "", COLOR);
+            int jsonSize = readInt(reply, 0);
+            int imageSize = readInt(reply, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
+            int imageBegin = SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE + sizeof(Int32);
+            byte[] imageRGB = reply.Skip(imageBegin).Take(imageSize).ToArray();
+            if (imageRGB.Length == 0)
             {
                 Console.WriteLine("Client depth image is empty!");
                 return null;
             }
             Console.WriteLine("Color image captured!");
-            Mat img = asMat(reply.ImageRGB);
-            return Cv2.ImDecode(img,ImreadModes.Color);
+            Mat img = asMat(imageRGB);
+            return Cv2.ImDecode(img, ImreadModes.Color);
 
         }
-        public Mat captureDepthImg() 
+        public Mat captureDepthImg()
         {
-            Mmind.Response reply = sendRequest(CaptureImage, DEPTH,"");
-            if (reply.ImageDepth.Length == 0)
+            byte[] response = sendRequest(Command.CaptureImage, 0, "", DEPTH);
+            int jsonSize = readInt(response, 0);
+            double scale = readDouble(response, jsonSize + SIZE_OF_JSON);
+            int imageSize = readInt(response, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
+            int imageBegin = SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE + sizeof(Int32);
+            byte[] imageDepth = response.Skip(imageBegin).Take(imageSize).ToArray();
+            if (imageDepth.Length == 0)
             {
                 Console.WriteLine("Client depth image is empty!");
                 return null;
             }
             Console.WriteLine("Depth image captured!");
-            return read32FC1Mat(reply.ImageDepth, 2);
+            return read32FC1Mat(imageDepth,scale);
         }
-        Mat read32FC1Mat(ByteString data, int offset = 0)
+        Mat read32FC1Mat(byte[] data, double scale)
         {
             if (data.Length == 0) return null;
-            double scale = readDouble(data, offset);
-            Mat bias16U = Cv2.ImDecode(asMat(data, sizeof(double) + offset), ImreadModes.AnyDepth);
+            Mat bias16U = Cv2.ImDecode(asMat(data), ImreadModes.AnyDepth);
             Mat bias32F = Mat.Zeros(bias16U.Size(), MatType.CV_32FC1);
             bias16U.ConvertTo(bias32F, MatType.CV_32FC1);
             Mat mat32F = bias32F + new Mat(bias32F.Size(), bias32F.Type(), Scalar.All(-Encode32FBias));
@@ -158,7 +192,7 @@ namespace Mechmind_CameraAPI_Csharp
             else
                 return mat32F / scale;
         }
-        Mat asMat(ByteString imgRGB,int offset = 0)
+        Mat asMat(byte[] imgRGB,int offset = 0)
         {
             int i = offset;
             Mat img = new Mat();
@@ -168,14 +202,12 @@ namespace Mechmind_CameraAPI_Csharp
             }
             return img;
         }
-        double readDouble(ByteString data_bs, int pos)
+        double readDouble(byte[] data_bs, int pos)
         {   
             if (pos + sizeof(double) > data_bs.Length)
             {
                 return 0;
             }
-           
-
             byte[] str = new byte[sizeof(double)];
             int j = 0;
             for (int i = sizeof(double)+pos-1; i >= pos; i--)
@@ -185,15 +217,30 @@ namespace Mechmind_CameraAPI_Csharp
             }
             str.Reverse();
             double v = BitConverter.ToDouble(str, 0);
-            //Console.WriteLine(v.ToString());
+            return v;
+        }
+        int readInt(byte[] data_bs, int pos)
+        {
+            if (pos + sizeof(Int32) > data_bs.Length)
+            {
+                return 0;
+            }
+            byte[] str = new byte[sizeof(Int32)];
+            int j = 0;
+            for (int i = sizeof(Int32) + pos - 1; i >= pos; i--)
+            {
+                str[j] = data_bs[i];
+                j++;
+            }
+            str.Reverse();
+            int v = BitConverter.ToInt32(str, 0);
             return v;
         }
 
-        Mat read32FC3Mat(ByteString data)
+        Mat read32FC3Mat(byte[] data, double scale)
         {
             if (data.Length == 0) return null;
-            double scale = readDouble(data, 0);
-            Mat matC1 = Cv2.ImDecode(asMat(data, sizeof(double)), ImreadModes.AnyDepth);
+            Mat matC1 = Cv2.ImDecode(asMat(data), ImreadModes.AnyDepth);
             Mat bias16UC3 = matC1ToC3(matC1);
             Mat bias32F = Mat.Zeros(bias16UC3.Size(), MatType.CV_32FC3);
             bias16UC3.ConvertTo(bias32F, MatType.CV_32FC3);
@@ -218,8 +265,13 @@ namespace Mechmind_CameraAPI_Csharp
         }
         public double[,] captureRGBCloud()
         {
-            Mmind.Response reply = sendRequest(CaptureGratingImage, 4, "");
-            Mat depthC3 = read32FC3Mat(reply.ImageGrating);
+            byte[] response = sendRequest(Command.CaptureGratingImage, 0, "", 4);
+            int jsonSize = readInt(response, 0);
+            double scale = readDouble(response, jsonSize + SIZE_OF_JSON);
+            int imageSize = readInt(response, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
+            int imageBegin = SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE + sizeof(Int32);
+            byte[] imageDepth = response.Skip(imageBegin).Take(imageSize).ToArray();
+            Mat depthC3 = read32FC3Mat(imageDepth, scale);
             Mat color = captureColorImg();
             int nums = color.Rows * color.Cols;
             double[,] xyzbgr = new double[nums, 6];
@@ -236,17 +288,8 @@ namespace Mechmind_CameraAPI_Csharp
                     count++;
 
                 }
-            
+
             return xyzbgr;
-        }
-        int find_last_char(string s,char c)
-        {
-            int last = s.Length - 1;
-            for (int i = last; i >= 0; i--)
-            {
-                if (s[i] == c) return i;
-            }
-            return -1;
         }
     }
 }
