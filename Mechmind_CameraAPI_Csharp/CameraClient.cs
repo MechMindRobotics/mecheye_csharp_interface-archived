@@ -50,12 +50,12 @@ namespace Mechmind_CameraAPI_Csharp
         public const string GetServerInfo = "GetServerInfo";
         public const string SetCameraParams = "SetCameraConfig";
         public const string GetCameraParams = "GetCameraConfig";
-        public const string CaptureGratingImage = "CaptureGratingImage";
     }
     class CameraClient:ZmqClient
     {
         const int DEPTH = 1;
         const int COLOR = 2;
+        const int MatXYZ = 16;
         const int Encode32FBias = 32768;
         const int SIZE_OF_JSON = 4;
         const int SIZE_OF_SCALE = 8;
@@ -265,7 +265,7 @@ namespace Mechmind_CameraAPI_Csharp
         }
         public double[,] captureRGBCloud()
         {
-            byte[] response = sendRequest(Command.CaptureGratingImage, 0, "", 4);
+            byte[] response = sendRequest(Command.CaptureImage, 0, "", MatXYZ);
             int jsonSize = readInt(response, 0);
             double scale = readDouble(response, jsonSize + SIZE_OF_JSON);
             int imageSize = readInt(response, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);

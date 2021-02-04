@@ -3,7 +3,7 @@
 
 This is official C# interfaces for Mech-Eye cameras. Only supported on Windows OS.
 
-If you are using Mech-Eye cameras with firmware version older than 1.0.0, please switch to Branch 0.4.0.
+If you are using Mech-Eye cameras with firmware version older than 1.2.0, please switch to older versions, see tags.
 
 ## Features
 
