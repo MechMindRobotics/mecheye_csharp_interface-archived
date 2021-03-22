@@ -164,7 +164,7 @@ namespace Mechmind_CameraAPI_Csharp
             Mat img = new Mat();
             for (; i < imgRGB.Length; i++)
             {
-                img.Add((byte)imgRGB[i]);
+                img.PushBack((byte)imgRGB[i]);
             }
             return img;
         }
