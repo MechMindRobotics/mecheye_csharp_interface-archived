@@ -91,6 +91,10 @@ There are two main classes: CameraClient and ZmqClient. CameraClient is subclass
 
   * **getCameraVersion()**: get camera's version number.
 
+  * **getColorImgSize()** : get the height and width of the color image to be captured.
+
+  * **getDepthImgSize()** : get the height and width of the depth image to be captured.
+
   * **getParameter()** : get the value of a specific parameter in camera. 
 
   * **setParameter()** : set the value of a specific parameter in camera.
@@ -121,6 +125,10 @@ Then, we can get some brief info about camera:
 ```c#
 Console.WriteLine("Camera ID: " + camera.getCameraId());
 Console.WriteLine("Version: " + camera.getCameraVersion());
+int[] colorImgSize = camera.getColorImgSize();
+int[] depthImgSize = camera.getDepthImgSize();
+Console.WriteLine("Color Image Size: {0} * {1}", colorImgSize[0], colorImgSize[1]);
+Console.WriteLine("Depth Image Size: {0} * {1}", depthImgSize[0], depthImgSize[1]);
 ```
 
 Finally, we can set and get the value of a specific parameter, in this case, we choose exposure time for color image:

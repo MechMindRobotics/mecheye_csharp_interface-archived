@@ -11,13 +11,17 @@ namespace Mechmind_CameraAPI_Csharp
             CameraClient camera = new CameraClient();
             //camera ip should be modified to actual ip address
             //always set ip before do anything else
-            camera.connect("192.168.3.189");
+            camera.connect("192.168.3.168");
 
             //get some camera info like intrincis, ip, id and version
             double[] intri = camera.getCameraIntri(); //[fx,fy,u,v]
 
             Console.WriteLine("Camera ID: " + camera.getCameraId());
             Console.WriteLine("Version: " + camera.getCameraVersion());
+            int[] colorImgSize = camera.getColorImgSize();
+            int[] depthImgSize = camera.getDepthImgSize();
+            Console.WriteLine("Color Image Size: {0} * {1}", colorImgSize[0], colorImgSize[1]);
+            Console.WriteLine("Depth Image Size: {0} * {1}", depthImgSize[0], depthImgSize[1]);
 
             string save_path = "D:\\";
             //capture color image and depth image and save them

@@ -39,6 +39,9 @@ namespace Mechmind_CameraAPI_Csharp
         public const string image_type = "image_type";
         public const string persistent = "persistent";
         public const string camera_config = "camera_config";
+        public const string image_format = "image_format";
+        public const string size2d = "imageSize2D";
+        public const string size3d = "imageSize3D";
     }
     static class Command
     {
@@ -50,6 +53,7 @@ namespace Mechmind_CameraAPI_Csharp
         public const string GetServerInfo = "GetServerInfo";
         public const string SetCameraParams = "SetCameraConfig";
         public const string GetCameraParams = "GetCameraConfig";
+        public const string GetImageFormat = "GetImageFormat";
     }
     class CameraClient:ZmqClient
     {
@@ -290,6 +294,24 @@ namespace Mechmind_CameraAPI_Csharp
                 }
 
             return xyzbgr;
+        }
+        JObject getImgSize()
+        {
+            byte[] reply = sendRequest(Command.GetImageFormat);
+            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
+            return (JObject)info[Service.image_format];
+        }
+        public int[] getColorImgSize()
+        {
+            JArray size2d = (JArray)getImgSize()[Service.size2d];
+            int[] res = { (int)size2d[0], (int)size2d[1] };
+            return res;
+        }
+        public int[] getDepthImgSize()
+        {
+            JArray size3d = (JArray)getImgSize()[Service.size3d];
+            int[] res = { (int)size3d[0], (int)size3d[1] };
+            return res;
         }
     }
 }
