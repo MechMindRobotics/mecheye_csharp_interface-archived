@@ -10,8 +10,8 @@ namespace Mechmind_CameraAPI_Csharp
         {
             CameraClient camera = new CameraClient();
             //camera ip should be modified to actual ip address
-            //always set ip before do anything else
-            camera.connect("192.168.3.168");
+            //always set ip before you do anything else
+            if(Status.Error == camera.connect("192.168.3.201")) return;
 
             //get some camera info like intrincis, ip, id and version
             double[] intri = camera.getCameraIntri(); //[fx,fy,u,v]
@@ -28,9 +28,10 @@ namespace Mechmind_CameraAPI_Csharp
             Mat color = camera.captureColorImg();
             Mat depth = camera.captureDepthImg();
 
-            if (color.Empty() || depth.Empty())
+            if(color == null || depth == null)
             {
                 Console.WriteLine("Empty images");
+                return;
             }
             else
             {

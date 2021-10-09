@@ -5,7 +5,15 @@ using Newtonsoft.Json.Linq;
 
 namespace Mechmind_CameraAPI_Csharp
 {
-
+    static class Constant
+    {
+        public const int TIMEOUTMS = 10000;
+    }
+    enum Status
+    {
+        Error,
+        Success
+    }
     class CameraIntri
     { 
         double __fx = 0.0;
@@ -55,6 +63,7 @@ namespace Mechmind_CameraAPI_Csharp
         public const string GetCameraParams = "GetCameraConfig";
         public const string GetImageFormat = "GetImageFormat";
     }
+
     class CameraClient:ZmqClient
     {
         const int DEPTH = 1;
@@ -65,7 +74,7 @@ namespace Mechmind_CameraAPI_Csharp
         const int SIZE_OF_SCALE = 8;
         public CameraClient() : base()
         { }
-        public int connect(string ip)
+        public Status connect(string ip)
         {
             return setAddr(ip);
         }
@@ -77,21 +86,32 @@ namespace Mechmind_CameraAPI_Csharp
             request.Add(Service.property_value, value);
             request.Add(Service.image_type, image_type);
             byte[] reply = sendReq(request.ToString());
+            if (reply == null)
+            {
+                System.Threading.Thread.Sleep(Constant.TIMEOUTMS);
+            }
             return reply;
         }
         public JToken getCameraInfo()
         {
             byte[] reply = sendRequest(Command.GetCameraInfo);
+            if (null == reply)
+            {
+                Console.WriteLine("Failed to get camera infomation!");
+                return null;
+            }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
             return info["camera_info"];
         }
         public string getCameraId()
         {
-            return getCameraInfo()["eyeId"].ToString();
+            JToken info = getCameraInfo();
+            return info != null ? info["eyeId"].ToString() : null;
         }
         public string getCameraVersion()
         {
-            return getCameraInfo()["version"].ToString();
+            JToken info = getCameraInfo();
+            return info != null ? info["version"].ToString() : null;
         }
         public double getParameter(string paraname)
         {
@@ -99,10 +119,15 @@ namespace Mechmind_CameraAPI_Csharp
             request.Add(Service.cmd, Command.GetCameraParams);
             request.Add(Service.property_name, paraname);
             byte[] reply = sendReq(request.ToString());
+            if (null == reply)
+            {
+                Console.WriteLine("Failed to get {0} parameter!", paraname);
+                return -1;
+            }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
             JToken allConfigs = info["camera_config"]["configs"][0];
             if (allConfigs[paraname] == null) {
-                Console.WriteLine("Property " + paraname +" not exist!");
+                Console.WriteLine("Property {0} not exist!", paraname);
                 return -1;
             }
             return double.Parse(allConfigs[paraname].ToString());
@@ -111,11 +136,16 @@ namespace Mechmind_CameraAPI_Csharp
         {
             JObject request = new JObject();
             request.Add(Service.cmd, Command.SetCameraParams);
-            JObject tmp = new JObject();
-            tmp.Add(paraname, value);
-            request.Add(Service.camera_config,tmp);
+            JObject objectToSet = new JObject();
+            objectToSet.Add(paraname, value);
+            request.Add(Service.camera_config, objectToSet);
             request.Add(Service.persistent, "false");
             byte[] reply = sendReq(request.ToString());
+            if (null == reply)
+            {
+                Console.WriteLine("Failed to set {0} parameter to {1}!", paraname, value);
+                return "";
+            }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
             if (info["err_msg"] != null)
                 Console.Write(info["err_msg"]);
@@ -124,6 +154,11 @@ namespace Mechmind_CameraAPI_Csharp
         public double[] getCameraIntri()
         {
             byte[] reply = sendRequest(Command.GetCameraIntri);
+            if (null == reply) 
+            {
+                Console.WriteLine("Failed to get camera intrinsics!");
+                return null;
+            }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
             string intri_original = info["camera_intri"]["intrinsic"].ToString();
             int start = intri_original.LastIndexOf('[');
@@ -131,7 +166,7 @@ namespace Mechmind_CameraAPI_Csharp
             int length = intri_original.Length;
             if (start == -1 || end == -1 || end < start)
             {
-                Console.WriteLine("Wrong camera intrinsics");
+                Console.WriteLine("Wrong camera intrinsics!");
                 return null;
             }
             string intri_str = intri_original.Remove(0, start + 1).Substring(0, end - start - 1);
@@ -159,7 +194,7 @@ namespace Mechmind_CameraAPI_Csharp
             byte[] imageRGB = reply.Skip(imageBegin).Take(imageSize).ToArray();
             if (imageRGB.Length == 0)
             {
-                Console.WriteLine("Client depth image is empty!");
+                Console.WriteLine("Client color image is empty!");
                 return null;
             }
             Console.WriteLine("Color image captured!");
@@ -298,18 +333,27 @@ namespace Mechmind_CameraAPI_Csharp
         JObject getImgSize()
         {
             byte[] reply = sendRequest(Command.GetImageFormat);
+            if (null == reply)
+            {
+                Console.WriteLine("Failed to get image size!");
+                return null;
+            }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
             return (JObject)info[Service.image_format];
         }
         public int[] getColorImgSize()
         {
-            JArray size2d = (JArray)getImgSize()[Service.size2d];
+            JObject imageSizeObject = getImgSize();
+            if (null == imageSizeObject) return null;
+            JArray size2d = (JArray)(imageSizeObject[Service.size2d]);
             int[] res = { (int)size2d[0], (int)size2d[1] };
             return res;
         }
         public int[] getDepthImgSize()
         {
-            JArray size3d = (JArray)getImgSize()[Service.size3d];
+            JObject imageSizeObject = getImgSize();
+            if (null == imageSizeObject) return null;
+            JArray size3d =(JArray)imageSizeObject[Service.size3d];
             int[] res = { (int)size3d[0], (int)size3d[1] };
             return res;
         }
