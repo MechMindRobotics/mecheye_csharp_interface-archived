@@ -139,7 +139,7 @@ namespace Mechmind_CameraAPI_Csharp
             JObject objectToSet = new JObject();
             objectToSet.Add(paraname, value);
             request.Add(Service.camera_config, objectToSet);
-            request.Add(Service.persistent, "false");
+            request.Add(Service.persistent, true);
             byte[] reply = sendReq(request.ToString());
             if (null == reply)
             {
