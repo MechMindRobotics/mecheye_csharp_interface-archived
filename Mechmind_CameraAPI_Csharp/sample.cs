@@ -36,7 +36,7 @@ namespace Mechmind_CameraAPI_Csharp
             else
             {
                 Cv2.ImWrite(save_path + "color.jpg", color);
-                Cv2.ImWrite(save_path + "depth.png", depth);
+                Cv2.ImWrite(save_path + "depth.tif", depth);
             }
             double[,] rel = camera.captureRGBCloud();//point cloud data in xyzrgb3
             Console.WriteLine("Cloud has " + rel.Length.ToString() + " points");
