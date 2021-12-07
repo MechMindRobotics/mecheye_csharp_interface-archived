@@ -141,15 +141,17 @@ namespace Mechmind_CameraAPI_Csharp
             request.Add(Service.camera_config, objectToSet);
             request.Add(Service.persistent, true);
             byte[] reply = sendReq(request.ToString());
+            string errString = "Failed to set paraname " + paraname + ".";
             if (null == reply)
             {
-                Console.WriteLine("Failed to set {0} parameter to {1}!", paraname, value);
-                return "";
+                return errString;
             }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
-            if (info["err_msg"] != null)
-                Console.Write(info["err_msg"]);
-            return "";
+            if(info.ContainsKey("err_msg") && info.Value<string>("err_msg") != "")
+            {
+                return errString + info["err_msg"]; 
+            }
+            return "Set " + paraname + " successfully!";
         }
         public double[] getCameraIntri()
         {
