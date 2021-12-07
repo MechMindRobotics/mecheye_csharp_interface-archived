@@ -76,7 +76,13 @@ namespace Mechmind_CameraAPI_Csharp
         { }
         public Status connect(string ip)
         {
-            return setAddr(ip);
+            if(Status.Success == setAddr(ip) && getCameraIntri() != null)
+            {               
+                Console.WriteLine("Successfully connected to this camera!");
+                return Status.Success;
+            }
+            Console.WriteLine("Failed to connect the camera! Please confirm whether the IP address to be connected is correct!");     
+            return Status.Error;
         }
         byte[] sendRequest(string command, double value = 0, string propertyName = "", int image_type = 0)
         {
