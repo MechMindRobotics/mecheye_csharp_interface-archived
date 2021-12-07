@@ -140,8 +140,12 @@ namespace Mechmind_CameraAPI_Csharp
                 Console.WriteLine("Failed to get {0} parameter!", paraname);
                 return -1;
             }
-            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
-            JToken allConfigs = info["camera_config"]["configs"][0];
+            string info = System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray());
+            if (!isResponseValid(info)) return -1;
+            JObject infoObject = JObject.Parse(info);
+            int configId;
+            int.TryParse(infoObject["camera_config"]["current_idx"].ToString(), out configId);                                                                                                                                                    
+            JToken allConfigs = infoObject["camera_config"]["configs"][configId];
             if (allConfigs[paraname] == null) {
                 Console.WriteLine("Property {0} not exist!", paraname);
                 return -1;
