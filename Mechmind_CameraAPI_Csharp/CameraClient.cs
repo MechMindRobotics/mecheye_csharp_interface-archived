@@ -8,6 +8,7 @@ namespace Mechmind_CameraAPI_Csharp
     static class Constant
     {
         public const int TIMEOUTMS = 10000;
+        public const string UNSUPPORTEDCOMMENDMSG = "Unsupported command.";
     }
     enum Status
     {
@@ -92,11 +93,20 @@ namespace Mechmind_CameraAPI_Csharp
             request.Add(Service.property_value, value);
             request.Add(Service.image_type, image_type);
             byte[] reply = sendReq(request.ToString());
-            if (reply == null)
+            if (null == reply)
             {
                 System.Threading.Thread.Sleep(Constant.TIMEOUTMS);
             }
             return reply;
+        }
+        private bool isResponseValid(string info)
+        {
+            if (info.Contains(Constant.UNSUPPORTEDCOMMENDMSG))
+            {
+                Console.WriteLine("{0}. Please check the command.", Constant.UNSUPPORTEDCOMMENDMSG);
+                return false;
+            }
+            return true;
         }
         public JToken getCameraInfo()
         {
@@ -106,8 +116,8 @@ namespace Mechmind_CameraAPI_Csharp
                 Console.WriteLine("Failed to get camera infomation!");
                 return null;
             }
-            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
-            return info["camera_info"];
+            string info = System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray());
+            return isResponseValid(info) ? JObject.Parse(info)["camera_info"] : null;
         }
         public string getCameraId()
         {
@@ -167,28 +177,29 @@ namespace Mechmind_CameraAPI_Csharp
                 Console.WriteLine("Failed to get camera intrinsics!");
                 return null;
             }
-            JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
-            string intri_original = info["camera_intri"]["intrinsic"].ToString();
-            int start = intri_original.LastIndexOf('[');
-            int end = intri_original.LastIndexOf(']');
-            int length = intri_original.Length;
+            string info = System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray());
+            if (!isResponseValid(info)) return null;
+            string intriOriginal = JObject.Parse(info)["camera_intri"]["intrinsic"].ToString();
+            int start = intriOriginal.LastIndexOf('[');
+            int end = intriOriginal.LastIndexOf(']');
+            int length = intriOriginal.Length;
             if (start == -1 || end == -1 || end < start)
             {
                 Console.WriteLine("Wrong camera intrinsics!");
                 return null;
             }
-            string intri_str = intri_original.Remove(0, start + 1).Substring(0, end - start - 1);
-            string[] intrivalue_str = intri_str.Split(',');
-            if (intrivalue_str.Length != 4)
+            string intriStr = intriOriginal.Remove(0, start + 1).Substring(0, end - start - 1);
+            string[] intriStrVec = intriStr.Split(',');
+            if (intriStrVec.Length != 4)
             {
                 Console.WriteLine("Wrong intrinscis value");
                 return null;
             }
             CameraIntri intri = new CameraIntri();
-            intri.setValue(double.Parse(intrivalue_str[0]),
-                double.Parse(intrivalue_str[1]),
-                double.Parse(intrivalue_str[2]),
-                double.Parse(intrivalue_str[3])
+            intri.setValue(double.Parse(intriStrVec[0]),
+                double.Parse(intriStrVec[1]),
+                double.Parse(intriStrVec[2]),
+                double.Parse(intriStrVec[3])
                 );
             double[] rel = intri.getValue();
             return rel;
@@ -196,6 +207,11 @@ namespace Mechmind_CameraAPI_Csharp
         public Mat captureColorImg()
         {
             byte[] reply = sendRequest(Command.CaptureImage, 0, "", COLOR);
+            if (null == reply)
+            {
+                Console.WriteLine("Client depth image is empty!");
+                return null;
+            }
             int jsonSize = readInt(reply, 0);
             int imageSize = readInt(reply, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
             int imageBegin = SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE + sizeof(Int32);
@@ -208,11 +224,15 @@ namespace Mechmind_CameraAPI_Csharp
             Console.WriteLine("Color image captured!");
             Mat img = asMat(imageRGB);
             return Cv2.ImDecode(img, ImreadModes.Color);
-
         }
         public Mat captureDepthImg()
         {
             byte[] response = sendRequest(Command.CaptureImage, 0, "", DEPTH);
+            if (null == response) 
+            {
+                Console.WriteLine("Client depth image is empty!"); 
+                return null; 
+            }
             int jsonSize = readInt(response, 0);
             double scale = readDouble(response, jsonSize + SIZE_OF_JSON);
             int imageSize = readInt(response, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
@@ -251,6 +271,7 @@ namespace Mechmind_CameraAPI_Csharp
         }
         double readDouble(byte[] data_bs, int pos)
         {   
+            if (null == data_bs) return 0;
             if (pos + sizeof(double) > data_bs.Length)
             {
                 return 0;
@@ -268,6 +289,7 @@ namespace Mechmind_CameraAPI_Csharp
         }
         int readInt(byte[] data_bs, int pos)
         {
+            if (null == data_bs) return 0;
             if (pos + sizeof(Int32) > data_bs.Length)
             {
                 return 0;
@@ -313,6 +335,11 @@ namespace Mechmind_CameraAPI_Csharp
         public double[,] captureRGBCloud()
         {
             byte[] response = sendRequest(Command.CaptureImage, 0, "", MatXYZ);
+            if (null == response)
+            {
+                Console.WriteLine("Client MatXYZ image is empty!");
+                return null;
+            }
             int jsonSize = readInt(response, 0);
             double scale = readDouble(response, jsonSize + SIZE_OF_JSON);
             int imageSize = readInt(response, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
