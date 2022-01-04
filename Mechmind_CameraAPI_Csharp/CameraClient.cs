@@ -9,6 +9,7 @@ namespace Mechmind_CameraAPI_Csharp
     {
         public const int TIMEOUTMS = 10000;
         public const string UNSUPPORTEDCOMMENDMSG = "Unsupported command.";
+        public const int SIZEOFROI = 4;
     }
     enum Status
     {
@@ -129,7 +130,7 @@ namespace Mechmind_CameraAPI_Csharp
             JToken info = getCameraInfo();
             return info != null ? info["version"].ToString() : null;
         }
-        public double getParameter(string paraname)
+        public string getParameter(string paraname)
         {
             JObject request = new JObject();
             request.Add(Service.cmd, Command.GetCameraParams);
@@ -137,42 +138,68 @@ namespace Mechmind_CameraAPI_Csharp
             byte[] reply = sendReq(request.ToString());
             if (null == reply)
             {
-                Console.WriteLine("Failed to get {0} parameter!", paraname);
-                return -1;
+                return "Failed to get " + paraname +" parameter!";
             }
             string info = System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray());
-            if (!isResponseValid(info)) return -1;
+            if (!isResponseValid(info)) return "";
             JObject infoObject = JObject.Parse(info);
             int configId;
             int.TryParse(infoObject["camera_config"]["current_idx"].ToString(), out configId);                                                                                                                                                    
             JToken allConfigs = infoObject["camera_config"]["configs"][configId];
             if (allConfigs[paraname] == null) {
-                Console.WriteLine("Property {0} not exist!", paraname);
-                return -1;
+                return "Property " + paraname +" not exist!";
             }
-            return double.Parse(allConfigs[paraname].ToString());
+            return allConfigs[paraname].ToString();
         }
         public string setParameter(string paraname, double value)
         {
             JObject request = new JObject();
             request.Add(Service.cmd, Command.SetCameraParams);
             JObject objectToSet = new JObject();
-            objectToSet.Add(paraname, value);
+            objectToSet.Add(paraname, value);         
             request.Add(Service.camera_config, objectToSet);
             request.Add(Service.persistent, true);
+            return checkReplyToSetParameter(request, paraname);
+        }
+
+        public string setParameter(string paraname, int[] value)
+        {
+            JObject request = new JObject();
+            request.Add(Service.cmd, Command.SetCameraParams);
+            JObject objectToSet = new JObject();
+            if ("roi" == paraname && Constant.SIZEOFROI == value.Length)
+            {
+                JObject roiObject = new JObject();
+                roiObject.Add("Height", value[0]);
+                roiObject.Add("Width", value[1]);
+                roiObject.Add("X", value[2]);
+                roiObject.Add("Y", value[3]);
+                objectToSet.Add(paraname, roiObject);
+            }
+            else
+            {
+                return "Failed to set ROI! Please enter the correct ROI!";
+            }
+            request.Add(Service.camera_config, objectToSet);
+            request.Add(Service.persistent, true);
+            return checkReplyToSetParameter(request, paraname);
+        }
+        private string checkReplyToSetParameter(JObject request, string parameter)
+        {
             byte[] reply = sendReq(request.ToString());
-            string errString = "Failed to set paraname " + paraname + ".";
+            string errString = "Failed to set parameter " + parameter + ".";
             if (null == reply)
             {
                 return errString;
             }
             JObject info = JObject.Parse(System.Text.Encoding.Default.GetString(reply.Skip(SIZE_OF_JSON).ToArray()));
-            if(info.ContainsKey("err_msg") && info.Value<string>("err_msg") != "")
+            if (info.ContainsKey("err_msg") && info.Value<string>("err_msg") != "")
             {
-                return errString + info["err_msg"]; 
+                return errString + info["err_msg"];
             }
-            return "Set " + paraname + " successfully!";
+            return "Set " + parameter + " successfully!";
         }
+
         public double[] getCameraIntri()
         {
             byte[] reply = sendRequest(Command.GetCameraIntri);
