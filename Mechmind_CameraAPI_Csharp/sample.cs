@@ -9,11 +9,11 @@ namespace Mechmind_CameraAPI_Csharp
         static void Main()
         {
             CameraClient camera = new CameraClient();
-            //camera ip should be modified to actual ip address
-            //always set ip before you do anything else
-            if(Status.Error == camera.connect("192.168.3.201")) return;
+            //The camera IP should be modified to the actual IP Address.
+            //Always set IP before you do anything else.
+            if(Status.Error == camera.connect("192.168.3.99")) return;
 
-            //get some camera info like intrincis, ip, id and version
+            //Get some camera information like intrincis, IP, ID and version.
             double[] intri = camera.getCameraIntri(); //[fx,fy,u,v]
 
             Console.WriteLine("Camera ID: " + camera.getCameraId());
@@ -24,7 +24,7 @@ namespace Mechmind_CameraAPI_Csharp
             Console.WriteLine("Depth Image Size: {0} * {1}", depthImgSize[0], depthImgSize[1]);
 
             string save_path = "D:\\";
-            //capture color image and depth image and save them
+            //Capture the color image and depth image and save them.
             Mat color = camera.captureColorImg();
             Mat depth = camera.captureDepthImg();
 
@@ -40,12 +40,15 @@ namespace Mechmind_CameraAPI_Csharp
             }
             double[,] rel = camera.captureRGBCloud();//point cloud data in xyzrgb3
             Console.WriteLine("Cloud has " + rel.Length.ToString() + " points");
-            //set some parameters of camera, you can refer to parameters' names in Mech_eye
-            Console.WriteLine(camera.setParameter("scan2dExposureMode",0)); //set exposure mode to timed
+            //Set some parameters of camera which you can refer to parameters' names in Mech_Eye Viewer.
+            Console.WriteLine(camera.setParameter("scan2dExposureMode",0)); //Set exposure mode to timed.
             Console.WriteLine(camera.getParameter("scan2dExposureMode"));
-            Console.WriteLine(camera.setParameter("scan2dExposureTime",20)); //set expsosure time to 20ms
+            Console.WriteLine(camera.setParameter("scan2dExposureTime",20)); //Set expsosure time to 20ms.
             Console.WriteLine(camera.getParameter("scan2dExposureTime"));
+
+            int[] roi = { 500, 500, 100, 100 }; // roi: height, width, X, Y
+            Console.WriteLine(camera.setParameter("roi", roi)); 
+            Console.WriteLine(camera.getParameter("roi"));
         }
-        
     }
 }
