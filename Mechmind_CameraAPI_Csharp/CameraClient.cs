@@ -363,6 +363,21 @@ namespace Mechmind_CameraAPI_Csharp
             Cv2.Merge(channels, rel);
             return rel;
         }
+        public Mat captureCloud()
+        {
+            byte[] response = sendRequest(Command.CaptureImage, 0, "", MatXYZ);
+            if (null == response)
+            {
+                Console.WriteLine("Client MatXYZ image is empty!");
+                return null;
+            }
+            int jsonSize = readInt(response, 0);
+            double scale = readDouble(response, jsonSize + SIZE_OF_JSON);
+            int imageSize = readInt(response, SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE);
+            int imageBegin = SIZE_OF_JSON + jsonSize + SIZE_OF_SCALE + sizeof(Int32);
+            byte[] imageDepth = response.Skip(imageBegin).Take(imageSize).ToArray();
+            return read32FC3Mat(imageDepth, scale);
+        }
         public double[,] captureRGBCloud()
         {
             byte[] response = sendRequest(Command.CaptureImage, 0, "", MatXYZ);
