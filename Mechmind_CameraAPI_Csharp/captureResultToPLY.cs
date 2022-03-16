@@ -1,7 +1,5 @@
 using System;
-using OpenCvSharp;
-using PclSharp;
-using PclSharp.IO;
+using Emgu.CV;
 
 namespace Mechmind_CameraAPI_Csharp
 {
@@ -16,48 +14,6 @@ namespace Mechmind_CameraAPI_Csharp
             Console.WriteLine("");
         }
 
-        static void savePLY(in Mat pointXYZMap, in string path)
-        {
-            PointCloudOfXYZ pointCloud(pointXYZMap.Width, pointXYZMap.Height);
-
-            for (int i = 0; i < pointXYZMap.Height; ++i)
-            {
-                for (int j = 0; j < pointXYZMap.Width; ++j)
-                {
-                    pointCloud.At(i, j).X = pointXYZMap.Get<Vec3f>(i, j).Item0;
-                    pointCloud.At(i, j).Y = pointXYZMap.Get<Vec3f>(i, j).Item1;
-                    pointCloud.At(i, j).Z = pointXYZMap.Get<Vec3f>(i, j).Item2;
-                }
-            }
-
-            PCDWriter writer;
-            writer.write(path, pointCloud);
-            Console.WriteLine("PointCloudXYZ has : {0} data points.", pointCloud.width * pointCloud.height);
-        }
-
-        static void savePLY(in Mat pointXYZMap, in Mat colorMap, in string path)
-        {
-            PointCloudOfXYZRGBA pointCloud(pointXYZMap.Width, pointXYZMap.Height);
-
-            for (int i = 0; i < pointXYZMap.Height; ++i)
-            {
-                for (int j = 0; j < pointXYZMap.Width; ++j)
-                {
-                    pointCloud.At(i, j).X = pointXYZMap.Get<Vec3f>(i, j).Item0;
-                    pointCloud.At(i, j).Y = pointXYZMap.Get<Vec3f>(i, j).Item1;
-                    pointCloud.At(i, j).Z = pointXYZMap.Get<Vec3f>(i, j).Item2;
-                    int r = pointXYZMap.Get<Vec3b>(i, j).Item0;
-                    int g = pointXYZMap.Get<Vec3b>(i, j).Item1;
-                    int b = pointXYZMap.Get<Vec3b>(i, j).Item2;
-                    pointCloud.At(i, j).rgba = (r << 16 | g << 8 | b);
-                }
-            }
-
-            PCDWriter writer;
-            writer.write(path, pointCloud);
-            Console.WriteLine("PointCloudXYZRGB has : {0} data points.", pointCloud.width * pointCloud.height);
-        }
-
         static void Main()
         {
             CameraClient camera = new CameraClient();
@@ -69,13 +25,13 @@ namespace Mechmind_CameraAPI_Csharp
             string cameraVersion = camera.getCameraVersion();
             printDeviceInfo(cameraID, cameraVersion);
 
-            string pointCloudPath = "pointCloudXYZ.pcd";
+            string pointCloudPath = "pointCloudXYZ.ply";
             Mat pointXYZMap = camera.captureCloud();
-            savePLY(pointXYZMap, pointCloudPath);
+            CvInvoke.WriteCloud(pointCloudPath, pointXYZMap);
 
-            string pointCloudColorPath = "pointCloudXYZRGB.pcd";
+            string pointCloudColorPath = "pointCloudXYZRGB.ply";
             Mat colorMap = camera.captureColorImg();
-            savePLY(pointXYZMap, colorMap, pointCloudColorPath);
+            CvInvoke.WriteCloud(pointCloudColorPath, pointXYZMap, colorMap);
         }
     }
 }

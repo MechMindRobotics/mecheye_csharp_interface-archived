@@ -1,5 +1,8 @@
 ﻿using System;
-using OpenCvSharp;
+using System.Drawing;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
@@ -253,8 +256,9 @@ namespace Mechmind_CameraAPI_Csharp
                 return null;
             }
             Console.WriteLine("Color image captured!");
-            Mat img = asMat(imageRGB);
-            return Cv2.ImDecode(img, ImreadModes.Color);
+            Mat img = new Mat();
+            CvInvoke.Imdecode(imageRGB, ImreadModes.Color, img);
+            return img;
         }
         public Mat captureDepthImg()
         {
@@ -280,25 +284,18 @@ namespace Mechmind_CameraAPI_Csharp
         Mat read32FC1Mat(byte[] data, double scale)
         {
             if (data.Length == 0) return null;
-            Mat bias16U = Cv2.ImDecode(asMat(data), ImreadModes.AnyDepth);
-            Mat bias32F = Mat.Zeros(bias16U.Size(), MatType.CV_32FC1);
-            bias16U.ConvertTo(bias32F, MatType.CV_32FC1);
-            Mat mat32F = bias32F + new Mat(bias32F.Size(), bias32F.Type(), Scalar.All(-Encode32FBias));
+            Mat bias16U = new Mat();
+            CvInvoke.Imdecode(data, ImreadModes.AnyDepth, bias16U);
+            Mat bias32F = Mat.Zeros(bias16U.Rows, bias16U.Cols, DepthType.Cv32F, 1);
+            bias16U.ConvertTo(bias32F, DepthType.Cv32F);
+            Mat encode32FBiasC1 = new Mat(bias32F.Size, bias32F.Depth, 1);
+            encode32FBiasC1.SetTo(new MCvScalar(-Encode32FBias));
+            Mat mat32F = bias32F + encode32FBiasC1;
 
             if (scale == 0)
                 return new Mat();
             else
                 return mat32F / scale;
-        }
-        Mat asMat(byte[] imgRGB,int offset = 0)
-        {
-            int i = offset;
-            Mat img = new Mat();
-            for (; i < imgRGB.Length; i++)
-            {
-                img.PushBack((byte)imgRGB[i]);
-            }
-            return img;
         }
         double readDouble(byte[] data_bs, int pos)
         {   
@@ -340,27 +337,30 @@ namespace Mechmind_CameraAPI_Csharp
         Mat read32FC3Mat(byte[] data, double scale)
         {
             if (data.Length == 0) return null;
-            Mat matC1 = Cv2.ImDecode(asMat(data), ImreadModes.AnyDepth);
+            Mat matC1 = new Mat();
+            CvInvoke.Imdecode(data, ImreadModes.AnyDepth, matC1);
             Mat bias16UC3 = matC1ToC3(matC1);
-            Mat bias32F = Mat.Zeros(bias16UC3.Size(), MatType.CV_32FC3);
-            bias16UC3.ConvertTo(bias32F, MatType.CV_32FC3);
-            Mat mat32F = bias32F + new Mat(bias32F.Size(), bias32F.Type(), Scalar.All(-Encode32FBias));
+            Mat bias32F = Mat.Zeros(bias16UC3.Rows, bias16UC3.Cols, DepthType.Cv32F, 3);
+            bias16UC3.ConvertTo(bias32F, DepthType.Cv32F);
+            Mat encode32FBiasC3 = new Mat();
+            encode32FBiasC3.SetTo(new MCvScalar(-Encode32FBias));
+            Mat mat32F = bias32F + encode32FBiasC3;
             Mat depth32F = mat32F / scale;
             return depth32F;
         }
         Mat matC1ToC3(Mat matC1)
         {
-            if (matC1.Empty()) return new Mat();
-            if (matC1.Channels() != 1 || (matC1.Rows % 3) != 0)
+            if (matC1.IsEmpty) return new Mat();
+            if (matC1.NumberOfChannels != 1 || (matC1.Rows % 3) != 0)
                 return new Mat();
-            Mat[] channels = new Mat[3];
+            Mat channels = new Mat();
             int rows = matC1.Rows;
             int cols = matC1.Cols;
-            channels[0] = (matC1[0, (int)rows / 3, 0, cols]);
-            channels[1] = (matC1[(int)rows / 3, (int)(2 * rows / 3), 0, cols]);
-            channels[2] = (matC1[(int)(2 * rows / 3), rows, 0, cols]);
+            channels.PushBack(new Mat(matC1, new Rectangle(0, (int)rows / 3, 0, cols)));
+            channels.PushBack(new Mat(matC1, new Rectangle((int)rows / 3, (int)(2 * rows / 3), 0, cols)));
+            channels.PushBack(new Mat(matC1, new Rectangle((int)(2 * rows / 3), rows, 0, cols)));
             Mat rel = new Mat();
-            Cv2.Merge(channels, rel);
+            CvInvoke.Merge(channels, rel);
             return rel;
         }
         public Mat captureCloud()
@@ -395,18 +395,20 @@ namespace Mechmind_CameraAPI_Csharp
             Mat color = captureColorImg();
             int nums = color.Rows * color.Cols;
             double[,] xyzbgr = new double[nums, 6];
+            double[,,] depthData = depthC3.ToImage<Rgb, double>().Data;
+            byte[,,] colorData = color.ToImage<Bgr, byte>().Data;
+            
             int count = 0;
             for (int i = 0; i < depthC3.Rows; i++)
                 for (int j = 0; j < depthC3.Cols; j++)
                 {
-                    xyzbgr[count, 0] = (double)depthC3.At<Vec3f>(i, j)[0] * 0.001;
-                    xyzbgr[count, 1] = (double)depthC3.At<Vec3f>(i, j)[1] * 0.001;
-                    xyzbgr[count, 2] = (double)depthC3.At<Vec3f>(i, j)[2] * 0.001;
-                    xyzbgr[count, 3] = color.At<Vec3b>(i, j)[0];
-                    xyzbgr[count, 4] = color.At<Vec3b>(i, j)[1];
-                    xyzbgr[count, 5] = color.At<Vec3b>(i, j)[2];
+                    xyzbgr[count, 0] = depthData[i, j, 0] * 0.001;
+                    xyzbgr[count, 1] = depthData[i, j, 1] * 0.001;
+                    xyzbgr[count, 2] = depthData[i, j, 2] * 0.001;
+                    xyzbgr[count, 3] = colorData[i, j, 0];
+                    xyzbgr[count, 4] = colorData[i, j, 1];
+                    xyzbgr[count, 5] = colorData[i, j, 2];
                     count++;
-
                 }
 
             return xyzbgr;

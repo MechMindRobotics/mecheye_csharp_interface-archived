@@ -1,5 +1,6 @@
 ﻿using System;
-using OpenCvSharp;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
 
 
 namespace Mechmind_CameraAPI_Csharp
@@ -35,8 +36,8 @@ namespace Mechmind_CameraAPI_Csharp
             }
             else
             {
-                Cv2.ImWrite(save_path + "color.jpg", color);
-                Cv2.ImWrite(save_path + "depth.tif", depth);
+                CvInvoke.Imwrite(save_path + "color.jpg", color);
+                CvInvoke.Imwrite(save_path + "depth.tif", depth);
             }
             double[,] rel = camera.captureRGBCloud();//point cloud data in xyzrgb3
             Console.WriteLine("Cloud has " + rel.Length.ToString() + " points");
