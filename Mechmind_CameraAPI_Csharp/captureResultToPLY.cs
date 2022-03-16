@@ -14,24 +14,15 @@ namespace Mechmind_CameraAPI_Csharp
             Console.WriteLine("");
         }
 
-        static void Main()
+        public static void capture(CameraClient camera, string save_path)
         {
-            CameraClient camera = new CameraClient();
-            string ip = Console.ReadLine();
-
-            if (Status.Error == camera.connect(ip)) return;
-
-            string cameraID = camera.getCameraId();
-            string cameraVersion = camera.getCameraVersion();
-            printDeviceInfo(cameraID, cameraVersion);
-
-            string pointCloudPath = "pointCloudXYZ.ply";
             Mat pointXYZMap = camera.captureCloud();
-            CvInvoke.WriteCloud(pointCloudPath, pointXYZMap);
+            CvInvoke.WriteCloud(save_path + "pointCloudXYZ.ply", pointXYZMap);
+            Console.WriteLine("PointCloudXYZ has : {0} data points.", pointXYZMap.Width * pointXYZMap.Height);
 
-            string pointCloudColorPath = "pointCloudXYZRGB.ply";
             Mat colorMap = camera.captureColorImg();
-            CvInvoke.WriteCloud(pointCloudColorPath, pointXYZMap, colorMap);
+            CvInvoke.WriteCloud(save_path + "pointCloudXYZRGB.ply", pointXYZMap, colorMap);
+            Console.WriteLine("PointCloudXYZRGB has : {0} data points.", pointXYZMap.Width, pointXYZMap.Height);
         }
     }
 }

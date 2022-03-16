@@ -7,12 +7,25 @@ namespace Mechmind_CameraAPI_Csharp
 {
     class sample  
     {
+        static void printDeviceInfo(in string cameraID, in string cameraVersion)
+        {
+            Console.WriteLine("............................");
+            Console.WriteLine("Camera ID:         " + cameraID);
+            Console.WriteLine("Firmware Version:  " + cameraVersion);
+            Console.WriteLine("............................");
+            Console.WriteLine("");
+        }
         static void Main()
         {
             CameraClient camera = new CameraClient();
-            //The camera IP should be modified to the actual IP Address.
-            //Always set IP before you do anything else.
-            if(Status.Error == camera.connect("192.168.3.99")) return;
+            Console.WriteLine("Enter Camera IP: ");
+            string ip = Console.ReadLine();
+
+            if (Status.Error == camera.connect(ip)) return;
+
+            string cameraID = camera.getCameraId();
+            string cameraVersion = camera.getCameraVersion();
+            printDeviceInfo(cameraID, cameraVersion);
 
             //Get some camera information like intrincis, IP, ID and version.
             double[] intri = camera.getCameraIntri(); //[fx,fy,u,v]
@@ -29,7 +42,7 @@ namespace Mechmind_CameraAPI_Csharp
             Mat color = camera.captureColorImg();
             Mat depth = camera.captureDepthImg();
 
-            if(color == null || depth == null)
+            if (color == null || depth == null)
             {
                 Console.WriteLine("Empty images");
                 return;
@@ -39,16 +52,17 @@ namespace Mechmind_CameraAPI_Csharp
                 CvInvoke.Imwrite(save_path + "color.jpg", color);
                 CvInvoke.Imwrite(save_path + "depth.tif", depth);
             }
-            double[,] rel = camera.captureRGBCloud();//point cloud data in xyzrgb3
-            Console.WriteLine("Cloud has " + rel.Length.ToString() + " points");
+
+            captureResultToPLY.capture(camera, save_path);
+
             //Set some parameters of camera which you can refer to parameters' names in Mech_Eye Viewer.
-            Console.WriteLine(camera.setParameter("scan2dExposureMode",0)); //Set exposure mode to timed.
+            Console.WriteLine(camera.setParameter("scan2dExposureMode", 0)); //Set exposure mode to timed.
             Console.WriteLine(camera.getParameter("scan2dExposureMode"));
-            Console.WriteLine(camera.setParameter("scan2dExposureTime",20)); //Set expsosure time to 20ms.
+            Console.WriteLine(camera.setParameter("scan2dExposureTime", 20)); //Set expsosure time to 20ms.
             Console.WriteLine(camera.getParameter("scan2dExposureTime"));
 
             int[] roi = { 500, 500, 100, 100 }; // roi: height, width, X, Y
-            Console.WriteLine(camera.setParameter("roi", roi)); 
+            Console.WriteLine(camera.setParameter("roi", roi));
             Console.WriteLine(camera.getParameter("roi"));
         }
     }
