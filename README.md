@@ -1,9 +1,11 @@
-# Mech-Eye_Csharp_interface
+# This repository is archived.
+
+## It's highly recommended to use the latest version of [Mech-Eye C# API](https://github.com/MechMindRobotics/mecheye_csharp_samples).
 
 
-This is official C# interfaces for Mech-Eye cameras. Only supported on Windows OS.
+Please select the proper branch corresponding to the camera firmware version. 
 
-Please select the proper branch corresponding to the camera firmware version.
+If the camera firmware version is greater than or equal to 1.5.0, please use the latest version of [Mech-Eye C# API](https://github.com/MechMindRobotics/mecheye_csharp_samples).
 
 ## Features
 
